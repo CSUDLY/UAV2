@@ -53,100 +53,13 @@ class Options { // ?????
 }
 
 // Some class
-/* class _Point {
+class _Point {
     constructor(x, y, z) {
         this.lng = x;
         this.lat = y;
         this.z = z;
     }
-} */
-
-
-(function () {
-    /* //const qgeocoordinate_EARTH_MEAN_RADIUS = 6371.0072;
-    //const M_PI = 3.14159265358979323846;
-
-    //function qRadiansToDegrees(d) {
-    //return d * 180.0 / M_PI;
-    //}
-
-    //function qDegreesToRadians(degrees) {
-    //	return degrees * (M_PI / 180);
-    //}
-
-    //function wrapLong(lng) {
-    //	if (lng > 180.0)
-    //		lng -= 360.0;
-    //	else if (lng < -180.0)
-    //		lng += 360.0;
-    //	return lng;
-    //} */
-
-    var _Point = function (lat, lng, alt) {
-        this.lat = lat || 0.0;
-        this.lng = lng || 0.0;
-        this.alt = alt || 0.0;
-    };
-
-    _Point.prototype.distanceTo = function (other) {
-        // Haversine formula
-        var dlat = qDegreesToRadians(other.lat - this.lat);
-        var dlon = qDegreesToRadians(other.lng - this.lng);
-        var haversine_dlat = Math.sin(dlat / 2.0);
-        haversine_dlat *= haversine_dlat;
-        var haversine_dlon = Math.sin(dlon / 2.0);
-        haversine_dlon *= haversine_dlon;
-        var y = haversine_dlat +
-            Math.cos(qDegreesToRadians(this.lat)) *
-            Math.cos(qDegreesToRadians(other.lat)) *
-            haversine_dlon;
-        var x = 2 * Math.asin(Math.sqrt(y));
-        return x * qgeocoordinate_EARTH_MEAN_RADIUS * 1000;
-    }
-
-    _Point.prototype.azimuthTo = function (other) {
-        var dlon = Math.qDegreesToRadians(other.lng - this.lng);
-        var lat1Rad = Math.qDegreesToRadians(this.lat);
-        var lat2Rad = Math.qDegreesToRadians(other.lat);
-
-        var y = Math.sin(dlon) * Math.cos(lat2Rad);
-        var x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dlon);
-
-        var azimuth = Math.qRadiansToDegrees(Math.atan2(y, x)) + 360.0;
-        var whole = parseInt(azimuth); //整数部分
-        var fraction = azimuth - whole; //小数部分
-        return (whole + 360) % 360 + fraction;
-    }
-
-    _Point.prototype.atDistanceAndAzimuth = function (distance, azimuth, distanceUp) {
-        distanceUp = 0.0;
-
-        var resultLon, resultLat;
-        var latRad = qDegreesToRadians(this.lat);
-        var lonRad = qDegreesToRadians(this.lng);
-        var cosLatRad = Math.cos(latRad);
-        var sinLatRad = Math.sin(latRad);
-
-        var azimuthRad = qDegreesToRadians(azimuth);
-
-        var ratio = (distance / (qgeocoordinate_EARTH_MEAN_RADIUS * 1000.0));
-        var cosRatio = Math.cos(ratio);
-        var sinRatio = Math.sin(ratio);
-
-        var resultLatRad = Math.asin(sinLatRad * cosRatio +
-            cosLatRad * sinRatio * Math.cos(azimuthRad));
-        var resultLonRad = lonRad + Math.atan2(Math.sin(azimuthRad) * sinRatio * cosLatRad,
-            cosRatio - sinLatRad * Math.sin(resultLatRad));
-
-        resultLat = qRadiansToDegrees(resultLatRad);
-        resultLon = qRadiansToDegrees(resultLonRad);
-
-        var resultAlt = this.alt + distanceUp;
-        return new _Point(resultLat, wrapLong(resultLon), resultAlt);
-    }
-
-    window._Point = _Point;
-})();
+}
 
 class _Polyline {
     constructor() {
@@ -163,22 +76,6 @@ class _Line {
         this.angle = 0;
     }
 }
-
-(function () {
-    var _Line = function () {
-        this.p1 = new _Point(0, 0, 0);
-        this.p2 = new _Point(0, 0, 0);
-        this.length = 0;
-        this.angle = 0;
-    }
-
-    _Line.prototype.unitVector = function () {
-
-    }
-
-    window._Line = _Line;
-}
-)();
 
 class _Polygon {
     constructor() {
@@ -215,8 +112,8 @@ class _ItemCase {
 }
 
 class _CameraCalc {
-    constructor(jsonobj) {
-        //var jsonobj = JSON.parse(jsonStr);
+    constructor(jsonStr) {
+        var jsonobj = JSON.parse(jsonStr);
         this.Vehicle = jsonobj.Vehicle;
         this.IsManual = false;
         this.Dirty = false;
@@ -353,7 +250,6 @@ function calcArea(polygon) {
     return 0.5 * Math.abs(area);
 }
 
-
 function rotateEntryPoint(args) { //TODO:????
     return null;
 }
@@ -361,8 +257,8 @@ function rotateEntryPoint(args) { //TODO:????
 function _rotatePoint(point, origin, angle) {
     var radians = (M_PI / 180.0) * -angle;
 
-    var lng = ((point.lng - origin.lng) * Math.cos(radians)) - ((point.lat - origin.lat) * Math.sin(radians)) + origin.lng;
-    var lat = ((point.lng - origin.lng) * Math.sin(radians)) + ((point.lat - origin.lat) * Math.cos(radians)) + origin.lat;
+    var lat = ((point.lat - origin.lat) * Math.cos(radians)) - ((point.lng - origin.lng) * Math.sin(radians)) + origin.lat;
+    var lng = ((point.lat - origin.lat) * Math.sin(radians)) + ((point.lng - origin.lng) * Math.cos(radians)) + origin.lng;
 
     return new _Point(lng, lat, 0);
 }
@@ -655,15 +551,15 @@ function _adjustTransectsToEntryPointLocation(transects) {
 
 function addInitionalPolyline(centerPoint, width, height, isMec = false) {
     // ignore isMec for template
-    var retline = new _Polyline();
+    var retline = new _Line();
 
     var x = centerPoint.lng + (width / 2);
     var yInset = height / 4;
     var topPointCoord = new _Point(x, centerPoint.lat + yInset);
     var bottomPointCoord = new _Point(x, centerPoint.lat + height - yInset);
 
-    retline.points.push(topPointCoord);
-    retline.points.push(bottomPointCoord);
+    retline.p1 = topPointCoord;
+    retline.p2 = bottomPointCoord;
     return retline;
 }
 
@@ -819,8 +715,8 @@ function setLineAngel(line, angle) {
     var dx = Math.cos(angleR) * l;
     var dy = -Math.sin(angleR) * l;
 
-    line.p2.lng = line.p1.lng + dx;
-    line.p2.lat = line.p1.lng + dy;
+    line.pt2.lng = line.pt1.lng + dx;
+    line.pt2.lat = line.pt1.lng + dy;
 }
 
 function offsetPolyline(line, distance) {
@@ -855,10 +751,10 @@ function offsetPolyline(line, distance) {
 
             var workerLine2 = originalEdge;
             workerLine2.length = distanceTo(workerLine2.p1, workerLine2.p2);
-            setLineAngel(workerLine2, workerLine2.angle + 90.0);
+            setLineAngle(workerLine2, workerLine2.angle + 90.0);
             offsetEdge.p2 = workerLine2.p2;
 
-            rgOffsetEdges.push(offsetEdge);
+            rgOffsetEdges.append(offsetEdge);
         }
 
         //QGeoCoordinate  tangentOrigin = vertexCoordinate(0);
@@ -867,7 +763,7 @@ function offsetPolyline(line, distance) {
         // Add first vertex
         //QGeoCoordinate coord;
         var coord1 = convertNedToGeo(rgOffsetEdges[0].p1.lat, rgOffsetEdges[0].p1.lng, 0, tangentOrigin);
-        rgNewPolyline.points.push(coord1);
+        rgNewPolyline.append(coord1);
 
         // Intersect the offset edges to generate new central vertices
         var newVertex = new _Point(0, 0, 0);
@@ -876,13 +772,13 @@ function offsetPolyline(line, distance) {
                 // Two lines are colinear
                 newVertex = rgOffsetEdges[i].p2;
             }
-            rgNewPolyline.points.push(convertNedToGeo(newVertex.lat, newVertex.lng, 0, tangentOrigin));
+            rgNewPolyline.append(convertNedToGeo(newVertex.lat, newVertex.lng, 0, tangentOrigin));
         }
 
         // Add last vertex
         var lastIndex = rgOffsetEdges.length - 1;
         var coord2 = convertNedToGeo(rgOffsetEdges[lastIndex].p2.lat, rgOffsetEdges[lastIndex].p2.lng, 0, tangentOrigin);
-        rgNewPolyline.points.push(coord2);
+        rgNewPolyline.append(coord2);
     }
 
     return rgNewPolyline;
