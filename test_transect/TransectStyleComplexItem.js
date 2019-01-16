@@ -4,15 +4,17 @@
 
 (function () {
 
-	this.TransectStyleComplexItem = function (options = new Options()) {
+	var TransectStyleComplexItem = function (options) {
 		// 巡航区域的面.
 		this.surveyAreaPolygon = null
 		// Camera
-		this.cameraCalc = null;
+		this.cameraCalc = new _CameraCalc();
+		// FIXIT: 这里是否所有的变量都包含在cameraCalc中？
 		this.camera = new Object();
 		this.camera.altitude = options.camera.altitude || 50
 		this.camera.triggerDist = options.camera.triggerDist || 25
 		this.camera.spacing = options.camera.spacing || 25
+		this.camera.DistanceToSurface = 0;
 
 		// Transects
 		this.transects = new Object();
@@ -36,6 +38,8 @@
 		this.statistic.flyDist = 0; // 飞行距离
 
 		// Members
+		this._flySpeed = 5;// m/s
+		this._wayPtAlt = 50;
 		this._transectsPathHeightInfo = null;
 		this._visualTransectPoints = null;
 		this._surveyAreaPolygon = null;//new _Polygon();
@@ -73,58 +77,11 @@
 		console.log("Build Mission Item To Json.")
 	}
 
-	TransectStyleComplexItem.prototype.setCameraCalc = function(camera_param, isManual = false)
-	{
+	TransectStyleComplexItem.prototype.CameraCalc = function () {
 		if (this.cameraCalc == null) {
-			this.cameraCalc = new _CameraCalc(camera_param);
+			this.cameraCalc = new _CameraCalc();
+			return this.cameraCalc;
 		}
-	}
-	TransectStyleComplexItem.prototype.recalcTriggerDistance = function (isManual = false) {
-		
-		if (this.cameraCalc == null)
-		{
-			return;
-		}
-		//this.cameraCalc instanceof _CameraCalc;
-		if (!isManual || !this.cameraCalc.IsManual) {
-			return JSON.parse(this.cameraCalc);
-		}
-
-		do {
-			this.cameraCalc.DisableRecalc = true;
-			var focalLength = this.cameraCalc.focalLength;
-			var sensorWidth = this.cameraCalc.sensorWidth;
-			var sensorHeight = this.cameraCalc.sensorHeight;
-			var imageWidth = this.cameraCalc.imageWidth;
-			var imageHeight = this.cameraCalc.imageHeight;
-			var imageDensity = this.cameraCalc.imageDensity;
-
-			if (focalLength <= 0 || sensorWidth <= 0 || sensorHeight <= 0 || imageWidth <= 0 || imageHeight <= 0 || imageDensity <= 0) {
-				break;
-			}
-
-			if (this.cameraCalc.ValueSetIsDistance) {
-				this.cameraCalc.imageDensity = (this.cameraCalc.DistanceToSurface * sensorWidth * 100.0) / (imageWidth * focalLength);
-			} else {
-				this.cameraCalc.DistanceToSurface = (imageWidth * this.cameraCalc.ImageDensity * focalLength) / (sensorWidth * 100.0);
-			}
-
-			imageDensity = this.cameraCalc.imageDensity;
-
-			if (this.cameraCalc.LandScape) {
-				this.cameraCalc.ImageFootprintSide = (imageWidth * imageDensity) / 100.0;
-				this.cameraCalc.ImageFootprintFrontal = (imageHeight * imageDensity) / 100.0;
-			} else {
-				this.cameraCalc.ImageFootprintSide = (imageHeight * imageDensity) / 100.0;
-				this.cameraCalc.ImageFootprintFrontal = (imageWidth * imageDensity) / 100.0;
-			}
-			this.cameraCalc.AdjustedFootprintSide = this.cameraCalc.ImageFootprintSide * ((100.0 - this.cameraCalc.SideOverlap) / 100.0);
-			this.cameraCalc.AdjustedFootprintFrontal = this.cameraCalc.ImageFootprintFrontal * ((100.0 - this.cameraCalc.FrontalOverlap) / 100.0);
-
-			this.cameraCalc.DisableRecalc = false;
-		} while (1);
-
-		return JSON.parse(this.cameraCalc);
 	}
 
 	TransectStyleComplexItem.prototype.getFlyPath = function () {
@@ -178,34 +135,49 @@
 		this.camera.spacing = spacing;
 		this.rebuildTransects();
 	}
+	
 	// 转向距离
 	TransectStyleComplexItem.prototype.updateTurnAroundDist = function (trunAroundDist) {
 		this.transects.turnAroundDist = trunAroundDist;
 		this.rebuildTransects();
 	}
+
 	// hoverAndCapture固定拍照?
 	TransectStyleComplexItem.prototype.updateHoverAndCap = function (hoverAndCap) {
 		this.transects.hoverAndCapture = hoverAndCap;
 		this.rebuildTransects();
 	}
+
 	// refly degree offset 重飞角度偏移
 	TransectStyleComplexItem.prototype.updateReflyAtNtDegOffset = function (degOffset) {
 		this.transects.reflyAtNTDegOffset = degOffset;
 		this.rebuildTransects();
 	}
+
 	// 转向
 	TransectStyleComplexItem.prototype.updateInTurnAround = function (inTurnAround) {
 		this.transects.imgInTurnAround = inTurnAround;
 		this.rebuildTransects();
 	}
+
 	// 相对高度
 	TransectStyleComplexItem.prototype.updateRelativeAltitude = function (relativeAltitude) {
 		this.transects.relativeAltitude = relativeAltitude;
 		this.rebuildTransects();
 	}
+
 	// terrain
 	TransectStyleComplexItem.prototype.updateFollowTerrain = function (followTerrain) {
 		this.terrain.vehicleFllowTerrain = followTerrain;
+		this.rebuildTransects();
+	}
+
+	//
+	TransectStyleComplexItem.prototype.rotatePoint = function () {
+		if (this._surveyAreaPolygon == null || this._surveyAreaPolygon == undefined || this._surveyAreaPolygon.points.length == 0) return;
+
+		var lastPoint = this._surveyAreaPolygon.points.pop();
+		this._surveyAreaPolygon.unshift(lastPoint);
 		this.rebuildTransects();
 	}
 

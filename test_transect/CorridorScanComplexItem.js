@@ -5,23 +5,24 @@
 (function () {
 
 	var CorridorScanComplexItem = function (options) {
+		TransectStyleComplexItem.call(this, TransectOptions);
 		this._transectsPathHeightInfo = new Array();
 		this._corridorWidth = 0;
-		this._corridorPolyline = new _Line();
+		this._corridorPolyline = new _Polyline;
 		this._ignoreRecalc = false;
+		this._entryPoint = 0;
 	};
 
-	CorridorScanComplexItem.prototype = new TransectStyleComplexItem();
+	CorridorScanComplexItem.prototype = new TransectStyleComplexItem(TransectOptions);
 	CorridorScanComplexItem.prototype.name = 'CorridorScanComplexItem';
 
-	
-	CorridorScanComplexItem.prototype.setCooridorWidth = function(w)
-	{
+
+	CorridorScanComplexItem.prototype.setCooridorWidth = function (w) {
 		this._corridorWidth = w;
 	}
 
 	CorridorScanComplexItem.prototype._transectCount = function () {
-		var transectSpacing = this.cameraCalc.adjustedFootprintSide;
+		var transectSpacing = this.cameraCalc.AdjustedFootprintSide;
 		var fullWidth = this._corridorWidth;
 		return fullWidth > 0.0 ? Math.ceil(fullWidth / transectSpacing) : 1;
 	}
@@ -68,38 +69,38 @@
 				var transect = new Array(_CoordInfo);
 				transect.shift();
 				//QList<QGeoCoordinate> transectCoords = _corridorPolyline.offsetPolyline(offsetDistance);
-				var transectCoords = _corridorPolyline.offsetPolyline(offsetDistance);
-				for (var j = 1; j < transectCoords.length - 1; j++) {
+				var transectCoords = offsetPolyline(this._corridorPolyline, offsetDistance);
+				for (var j = 1; j < transectCoords.points.length - 1; j++) {
 					var coordInfo = new _CoordInfo()
-					coordInfo.coord = transectCoords[j];
+					coordInfo.coord = transectCoords.points[j];
 					coordInfo.type = CoordType.CoordTypeInterior;
 					transect.push(coordInfo);
 				}
 				var coordInfo1 = new _CoordInfo()
-				coordInfo1.coord = transectCoords.first();
+				coordInfo1.coord = transectCoords.points[transectCoords.points.length - 1];
 				coordInfo1.type = CoordType.CoordTypeSurveyEdge;//{ transectCoords.first(), CoordTypeSurveyEdge };
-				transect.prepend(coordInfo1);
+				transect.unshift(coordInfo1);
 				var coordInfo2 = new _CoordInfo();
-				coordInfo2.coord = transectCoords.last();
+				coordInfo2.coord = transectCoords.points[transectCoords.points.length - 1];
 				coordInfo2.type = CoordType.CoordTypeSurveyEdge;
 				//coordInfo = { transectCoords.last(), CoordTypeSurveyEdge };
-				transect.append(coordInfo);
+				transect.push(coordInfo2);
 
 				// Extend the transect ends for turnaround
-				if (_hasTurnaround()) {
+				if (this.transects.turnAroundDist > 0) {
 					//QGeoCoordinate turnaroundCoord;
-					var turnAroundDistance = _turnAroundDistanceFact.rawValue().tovar();
+					var turnAroundDistance = this.transects.turnAroundDistance;
 
-					var azimuth = transectCoords[0].azimuthTo(transectCoords[1]);
-					var turnaroundCoord1 = atDistanceAndAzimuth(transectCoords[0], -turnAroundDistance, azimuth);
+					var azimuth = transectCoords.points[0].azimuthTo(transectCoords.points[1]);
+					var turnaroundCoord1 = transectCoords.points[0].atDistanceAndAzimuth(-turnAroundDistance, azimuth, 0);
 					//turnaroundCoord.setAltitude(qQNaN());
 					var coordInfo3 = new _CoordInfo();
 					coordInfo3.coord = turnaroundCoord1;
 					coordInfo3.type = CoordType.CoordTypeTurnaround;
 					transect.unshift(coordInfo3);
 
-					azimuth = transectCoords.last().azimuthTo(transectCoords[transectCoords.count() - 2]);
-					var transectCoords = transectCoords.last().atDistanceAndAzimuth(-turnAroundDistance, azimuth);
+					azimuth = transectCoords.points[transectCoords.points.length - 1].azimuthTo(transectCoords.points[transectCoords.points.length - 2]);
+					var transectCoords = transectCoords.points[transectCoords.points.length - 1].atDistanceAndAzimuth(-turnAroundDistance, azimuth, 0);
 					//transectCoords.setAltitude(qQNaN());
 					var coordInfo4 = new _CoordInfo();
 					coordInfo4.coord = transectCoords;
@@ -114,7 +115,7 @@
 					//}
 				}
 
-				_transects.append(transect);
+				this._transects.push(transect);
 				normalizedTransectPosition += transectSpacing;
 			}
 
@@ -126,7 +127,8 @@
 
 			var reverseTransects = false;
 			var reverseVertices = false;
-			switch (_entryPoint) {
+			switch (this._entryPoint) {
+
 				case 0:
 					reverseTransects = false;
 					reverseVertices = false;
@@ -148,73 +150,186 @@
 				var reversedTransects = new Array;
 				reversedTransects.shift();
 
-				for (var ks = 0; ks < _transects.count(); ++ks) {
-					reversedTransects.unshift(_transects[ks]);
+				for (var ks = 0; ks < this._transects.length; ++ks) {
+					reversedTransects.unshift(this._transects[ks]);
 				}
 				//foreach (const QList<TransectStyleComplexItem::CoordInfo_t>& transect, _transects) {
 				//	reversedTransects.prepend(transect);
 				//}
-				_transects = reversedTransects;
+				this._transects = reversedTransects;
 			}
 			if (reverseVertices) {
-				for (var i = 0; i < _transects.count(); i++) {
+				for (var i = 0; i < this._transects.length; i++) {
 					//QList<TransectStyleComplexItem::CoordInfo_t> reversedVertices;
 					var reversedVertices = new Array();
 					reversedVertices.shift();
-					for (var ks = 0; ks < _transects[i].count(); ++i) {
-						reversedVertices.unshift(_transects[i][ks]);
+					for (var ks = 0; ks < this._transects[i].length; ++i) {
+						reversedVertices.unshift(this._transects[i][ks]);
 					}
 					//foreach (const TransectStyleComplexItem::CoordInfo_t& vertex, _transects[i]) {
 					//						reversedVertices.prepend(vertex);
 					//					}
-					_transects[i] = reversedVertices;
+					this._transects[i] = reversedVertices;
 				}
 			}
 
 			// Adjust to lawnmower pattern
 			reverseVertices = false;
-			for (var i = 0; i < _transects.count(); i++) {
+			for (var i = 0; i < this._transects.length; i++) {
 				// We must reverse the vertices for every other transect in order to make a lawnmower pattern
 				//QList<TransectStyleComplexItem::CoordInfo_t> transectVertices = _transects[i];
-				var transectVertices = _transects[i];
+				var transectVertices = this._transects[i];
 				if (reverseVertices) {
 					reverseVertices = false;
 					//QList<TransectStyleComplexItem::CoordInfo_t> reversedVertices;
-					var reversedVertices;
-					for (var j = transectVertices.count() - 1; j >= 0; j--) {
-						reversedVertices.append(transectVertices[j]);
+					var reversedVertices = new Array();
+					for (var j = transectVertices.length - 1; j >= 0; j--) {
+						reversedVertices.push(transectVertices[j]);
 					}
 					transectVertices = reversedVertices;
 				} else {
 					reverseVertices = true;
 				}
-				_transects[i] = transectVertices;
+				this._transects[i] = transectVertices;
 			}
 		}
 	}
 
 	CorridorScanComplexItem.prototype._rebuildTransectsPhase2 = function () {
-		console.log("CorridorScanComplexItem _rebuildTransectsPhase1");
+		console.log("SurveyComplexItem _rebuildTransectsPhase2");
+		this._visualTransectPoints = new Array(_Point)
+		this._visualTransectPoints.shift();
+
+		for (var indi = 0; indi < this._transects.length; indi++) {
+			var transect = this._transects[indi];
+			for (var indj = 0; indj < transect.length; indj++) {
+				this._visualTransectPoints.push(transect[indj]);
+			}
+		}
 		// Calculate distance flown for complex item
-		_complexDistance = 0;
-		for (var i = 0; i < _visualTransectPoints.count() - 1; i++) {
-			_complexDistance += distanceTo(_visualTransectPoints[i], _visualTransectPoints[i + 1]);
+		this.statistic.flyDist = 0;
+		for (var i = 0; i < this._visualTransectPoints.length - 1; i++) {
+			this.statistic.flyDist += this._visualTransectPoints[i].coord.distanceTo(this._visualTransectPoints[i + 1].coord);
 		}
 
-		if (_cameraTriggerInTurnAroundFact.rawValue().toBool()) {
-			_cameraShots = qCeil(_complexDistance / this.cameraCalc.AdjustedFootprintFrontal);
+		if (this.transects.imgInTurnAround) {
+			this.statistic.photoCount = Math.ceil(this.statistic.flyDist / this.cameraCalc.AdjustedFootprintFrontal);
 		} else {
-			var singleTransectImageCount = qCeil(_corridorPolyline.length() / this.cameraCalc.AdjustedFootprintFrontal);
-			_cameraShots = singleTransectImageCount * this._transectCount();
+			// FIXIT
+			var tmpp1 = this._corridorPolyline.p1;
+			var tmpp2 = this._corridorPolyline.p2;
+			var singleTransectImageCount = Math.ceil(distanceTo(tmpp1, tmpp2) / this.cameraCalc.AdjustedFootprintFrontal);
+			this.statistic.photoCount = singleTransectImageCount * this._transectCount.length;
 		}
 
-		_coordinate = _visualTransectPoints.length ? _visualTransectPoints[0] : new _Point(0, 0, 0);
-		_exitCoordinate = _visualTransectPoints.length ? _visualTransectPoints[_visualTransectPoints.length - 1] : new _Point(0, 0, 0);
+		this._coordinate = this._visualTransectPoints.length ? this._visualTransectPoints[0] : new _Point(0, 0, 0);
+		this._exitCoordinate = this._visualTransectPoints.length ? this._visualTransectPoints[this._visualTransectPoints.length - 1] : new _Point(0, 0, 0);
 	}
 
 	CorridorScanComplexItem.prototype.setViewPort = function (coord, width, height, isMec = false) {
 		console.log("Setting view port.")
 		this._corridorPolyline = addInitionalPolyline(coord, width, height, isMec)
+	}
+
+	CorridorScanComplexItem.prototype.buildMissionItemToJson = function (index = 0) {
+		console.log("Build Mission Item To Json.")
+
+
+		var imagesEverywhere = this.cameraCalc.TriggerInTurnAround;
+		var addTriggerAtBeginning = imagesEverywhere;
+		var firstOverallPoint = true;
+		//followTerrain() || !_cameraCalc.distanceToSurfaceRelative() ? MAV_FRAME_GLOBAL : MAV_FRAME_GLOBAL_RELATIVE_ALT;
+		var mavFrame = !this.cameraCalc.DistanceToSurfaceRelative ? 0 : 3;
+		var itemlist = new Array(_ItemCase);
+		itemlist.shift();
+		//qDebug() << "_buildAndAppendMissionItems";
+		//(const QList<TransectStyleComplexItem::CoordInfo_t>& transect, _transects) {
+		for (var i = 0; i < this._transects.length; ++i) {
+
+			//qDebug() << "start transect";
+			//foreach (const CoordInfo_t& transectCoordInfo, transect) {
+			for (var j = 0; j < this._transects[i].length; ++j) {
+				var tmpitem = new _ItemCase(index++,
+					16,
+					mavFrame,
+					0,                                          // No hold time
+					0.0,                                        // No acceptance radius specified
+					0.0,                                        // Pass through waypoint
+					0,   // Yaw unchanged
+					this._transects[i][j].coord.lat,
+					this._transects[i][j].coord.lng,
+					this._transects[i][j].coord.alt,
+					true,                                       // autoContinue
+					false,                                      // isCurrentItem
+					"ComplexItem");
+				itemlist.push(tmpitem);
+
+				if (firstOverallPoint && addTriggerAtBeginning) {
+					// Start triggering
+					addTriggerAtBeginning = false;
+					var item1 = new _ItemCase(index++,
+						206,
+						2,
+						this.cameraCalc.AdjustedFootprintFrontal,   // trigger distance
+						0,                                                               // shutter integration (ignore)
+						1,                                                               // trigger immediately when starting
+						0, 0, 0, 0,                                                      // param 4-7 unused
+						true,                                                            // autoContinue
+						false,                                                           // isCurrentItem
+						"ComplexItem");
+					itemlist.push(item1);
+				}
+				firstOverallPoint = false;
+
+				if (this._transects[i][j].type == 3 && !imagesEverywhere) {
+					if (entryPoint) {
+						// Start of transect, start triggering
+						var item2 = new _ItemCase(index++,
+							206,
+							2,
+							this.cameraCalc.AdjustedFootprintFrontal,   // trigger distance
+							0,                                                               // shutter integration (ignore)
+							1,                                                               // trigger immediately when starting
+							0, 0, 0, 0,                                                      // param 4-7 unused
+							true,                                                            // autoContinue
+							false,                                                           // isCurrentItem
+							"ComplexItem");
+						itemlist.push(item2);
+					} else {
+						// End of transect, stop triggering
+						var item3 = new _ItemCase(index++,
+							206,
+							2,
+							0,           // stop triggering
+							0,           // shutter integration (ignore)
+							0,           // trigger immediately when starting
+							0, 0, 0, 0,  // param 4-7 unused
+							true,        // autoContinue
+							false,       // isCurrentItem
+							"ComplexItem");
+						itemlist.push(item3);
+					}
+					entryPoint = !entryPoint;
+				}
+			}
+		}
+
+		if (imagesEverywhere) {
+			// Stop triggering
+			var item4 = new _ItemCase(index++,
+				206,
+				2,
+				0,           // stop triggering
+				0,           // shutter integration (ignore)
+				0,           // trigger immediately when starting
+				0, 0, 0, 0,  // param 4-7 unused
+				true,        // autoContinue
+				false,       // isCurrentItem
+				"ComplexItem");
+			itemlist.push(item4);
+		}
+
+		return JSON.stringify(itemlist);
 	}
 
 	window.CorridorScanComplexItem = CorridorScanComplexItem;

@@ -35,14 +35,11 @@
 			}
 			function test()
 			{
-
-				
-				var item = new SurveyComplexItem();
 				var item = new CorridorScanComplexItem();
 				var centerPoint = new _Point(116.0,40.0,0);
-				//item.setViewPort(centerPoint, 0.3, 0.2);
+				item.setViewPort(centerPoint, 0.3, 0.2);
 				item.setCooridorWidth(50);
-				//var ssa = '{"AdjustedFootprintFrontal":225,"AdjustedFootprintSide":300,"CameraName":"CustomCamera","DistanceToSurface":729.3354943273906,"DistanceToSurfaceRelative":true,"FixedOrientation":false,"FocalLength":4.5,"FrontalOverlap":70,"ImageDensity":25,"ImageHeight":3000,"ImageWidth":4000,"Landscape":true,"MinTriggerInterval":0,"SensorHeight":4.55,"SensorWidth":6.17,"SideOverlap":70,"ValueSetIsDistance":false,"version":1}';
+				var ssa = {"AdjustedFootprintFrontal":225,"AdjustedFootprintSide":300,"CameraName":"CustomCamera","DistanceToSurface":729.3354943273906,"DistanceToSurfaceRelative":true,"FixedOrientation":false,"FocalLength":4.5,"FrontalOverlap":70,"ImageDensity":25,"ImageHeight":3000,"ImageWidth":4000,"Landscape":true,"MinTriggerInterval":0,"SensorHeight":4.55,"SensorWidth":6.17,"SideOverlap":70,"ValueSetIsDistance":false,"version":1};
 				//item.setCameraCalc(ssa);
 				// 矩形框
 				//var poly = item.getAreaPoints();

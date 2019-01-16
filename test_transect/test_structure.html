@@ -38,10 +38,10 @@
 
 				
 				var item = new SurveyComplexItem();
-				var item = new CorridorScanComplexItem();
+				var item = new StructureScanComplexItem();
 				var centerPoint = new _Point(116.0,40.0,0);
-				//item.setViewPort(centerPoint, 0.3, 0.2);
-				item.setCooridorWidth(50);
+				item.setViewPort(centerPoint, 0.3, 0.2);
+				item.setScanDistance(300);
 				//var ssa = '{"AdjustedFootprintFrontal":225,"AdjustedFootprintSide":300,"CameraName":"CustomCamera","DistanceToSurface":729.3354943273906,"DistanceToSurfaceRelative":true,"FixedOrientation":false,"FocalLength":4.5,"FrontalOverlap":70,"ImageDensity":25,"ImageHeight":3000,"ImageWidth":4000,"Landscape":true,"MinTriggerInterval":0,"SensorHeight":4.55,"SensorWidth":6.17,"SideOverlap":70,"ValueSetIsDistance":false,"version":1}';
 				//item.setCameraCalc(ssa);
 				// 矩形框
@@ -50,18 +50,18 @@
 				//<!-- item.setSelfDefineAreaPoints(poly);-->
 				item.rebuildTransects();
 				// 飞行路径 白色线
-				var flyPath = item.getFlyPath();
+				//var flyPath = item.getFlyPath();
 				// 飞入飞出点
-				var entryExitPoint = item.getEntryExitPoint();
+				//var entryExitPoint = item.getEntryExitPoint();
 				// 统计 面积,拍照数
-				var statctis = item.getStatistics();
+				//var statctis = item.getStatistics();
 
 				var missionJson = item.buildMissionItemToJson(1);
 
 				// 修改控制参数 ,其他对应函数名
-				item.updateAngle(10);
+				//item.updateAngle(10);
 
-				flyPath =  item.getFlyPath();
+				//flyPath =  item.getFlyPath();
 
 				//var ceter = new _Point(116.00, 40.0, 0);
 				//calcAreaCorner(ceter, 0.026607513427734375, 0.011011378019674112);

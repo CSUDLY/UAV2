@@ -4,11 +4,30 @@
 
 (function () {
 
-	var SurveyComplexItem = function (options) {
-
+	var TransectOptions = {
+		"camera": {
+			"altitude": 50,
+			"triggerDist": 25,
+			"spacing": 25
+		},
+		"transects": {
+			"angle": 0,
+			"turnAroundDist": 10,
+			"hoverAndCapture": false,
+			"reflyAtNTDegOffset": false,
+			"imgInTurnAround": true,
+			"relativeAltitude": true
+		},
+		"terrain": {
+			"vehicleFllowTerrain": false
+		}
 	};
 
-	SurveyComplexItem.prototype = new TransectStyleComplexItem();
+	var SurveyComplexItem = function (options) {
+		TransectStyleComplexItem.call(this, TransectOptions);
+	};
+
+	SurveyComplexItem.prototype = new TransectStyleComplexItem(TransectOptions);
 	SurveyComplexItem.prototype.name = 'SurveyComplexItem';
 
 	SurveyComplexItem.prototype.rebuildTransects = function (refly = false) {
@@ -32,7 +51,7 @@
 
 				geoToNedResult = new _Point(0, 0, 0);
 			} else {
-				geoToNedResult = convertGeoToNed(vertex, tangentOrigin);
+				geoToNedResult = vertex.convertGeoToNed(tangentOrigin);
 			}
 			polygonPoints.push(geoToNedResult);  //polygonPoints点数组中添加转换后的点
 			calcAreaPoly.points.push(geoToNedResult);
@@ -43,7 +62,7 @@
 			console.log("_rebuildTransectsPhase1 vertex:x:y" + vertex + polygonPoints[polygonPoints.length - 1]);
 		}
 
-		this.statistic.surveyArea = calcArea(calcAreaPoly);
+		this.statistic.surveyArea = calcAreaPoly.calcArea();
 
 		// Generate transects
 		this.transects.angle = _clampGridAngle90(this.transects.angle);  //这里调用格式化角度的函数
@@ -98,7 +117,7 @@
 		// 生成的横断面与边界矩形的最大宽度/高度一样长，加上一些模糊因子。
 		// 这样，无论旋转到什么角度，它们都保证与多边形边缘相交。
 		// 它们最初是由横断面由西向东流动产生的，然后在横断面内由北向南指向点。
-		var maxWidth = qMax(boundingRect[0], boundingRect[1]) + 2000.0; // 最大宽度，qMax函数是执行 return (a < b) ? b : a; 查找最大值
+		var maxWidth = Math.max(boundingRect[0], boundingRect[1]) + 2000.0; // 最大宽度，qMax函数是执行 return (a < b) ? b : a; 查找最大值
 		var halfWidth = maxWidth / 2.0;
 		var transectX = boundingCenter.lng - halfWidth;
 		var transectXMax = transectX + maxWidth;
@@ -107,7 +126,7 @@
 			var transectYBottom = boundingCenter.lat + halfWidth;
 			var tmpLine = new _Line;
 
-			tmpLine.p1  = _rotatePoint(new _Point(transectX, transectYTop, 0), boundingCenter, this.transects.angle);
+			tmpLine.p1 = _rotatePoint(new _Point(transectX, transectYTop, 0), boundingCenter, this.transects.angle);
 			tmpLine.p2 = _rotatePoint(new _Point(transectX, transectYBottom, 0), boundingCenter, this.transects.angle);
 
 			transectX += this.camera.spacing;
@@ -132,7 +151,7 @@
 			firstLine.p2.lng += centerOffset.lng;
 			firstLine.p1.lat += centerOffset.lat;
 			firstLine.p2.lat += centerOffset.lat;
-			
+
 			lineList = new Array(); //清理
 			lineList.push(firstLine);
 			intersectLines = lineList;
@@ -150,8 +169,8 @@
 		for (var ind = 0; ind < resultLines.length; ind++) {  //遍历线数组resultLines
 			var tmpLine = resultLines[ind];  //QGeoCoordinate
 			var transect = [];//QList<QGeoCoordinate>
-			transect.push(convertNedToGeo(tmpLine.p1.lat, tmpLine.p1.lng, 0, tangentOrigin)); //将Ned转换成Geo
-			transect.push(convertNedToGeo(tmpLine.p2.lat, tmpLine.p2.lng, 0, tangentOrigin)); //将Ned转换成Geo
+			transect.push(tmpLine.p1.convertNedToGeo(tangentOrigin)); //将Ned转换成Geo
+			transect.push(tmpLine.p2.convertNedToGeo(tangentOrigin)); //将Ned转换成Geo
 			transects.push(transect);
 		}
 
@@ -219,14 +238,14 @@
 			if (this.camera.triggerDist && this.transects.hoverAndCapture) {//(triggerCamera() && hoverAndCaptureEnabled()) 
 				//bool    triggerCamera           (void) const { return triggerDistance() != 0; }
 				// bool    hoverAndCaptureEnabled  (void) const { return hoverAndCapture()->rawValue().toBool(); }
-				var transectLength = distanceTo(transect[0], transect[1]);  //这里是在算距离
-				var transectAzimuth = azimuthTo(transect[0], transect[1]);  //这里是在算角度
+				var transectLength = transect[0].distanceTo(transect[1]);  //这里是在算距离
+				var transectAzimuth = transect[0].azimuthTo(transect[1]);  //这里是在算角度
 
 				if (this.camera.triggerDist < transectLength) {//double  triggerDistance         (void) const { return _cameraCalc.adjustedFootprintFrontal()->rawValue().toDouble(); }
 					var cInnerHoverPoints = Math.floor(transectLength / this.camera.triggerDist);
 					console.log("cInnerHoverPoints" + cInnerHoverPoints);
 					for (var i = 0; i < cInnerHoverPoints; i++) {
-						var hoverCoord = atDistanceAndAzimuth(transect[0], this.camera.triggerDist * (i + 1), transectAzimuth); //QGeoCoordinate
+						var hoverCoord = transect[0].atDistanceAndAzimuth(this.camera.triggerDist * (i + 1), transectAzimuth); //QGeoCoordinate
 						var coordInfo = [hoverCoord, CoordType.CoordTypeInteriorHoverTrigger]; //TransectStyleComplexItem::CoordInfo_t 
 						coordInfoTransect.push(coordInfo);  //coordInfoTransect.insert(1 + i, coordInfo);
 					}
@@ -238,16 +257,16 @@
 				//QGeoCoordinate
 				var turnAroundDistance = this.transects.turnAroundDist; //double
 
-				var azimuth = azimuthTo(transect[0], transect[1]); //double
-				var turnaroundCoord1 = atDistanceAndAzimuth(transect[0], -turnAroundDistance, azimuth);
+				var azimuth = transect[0].azimuthTo(transect[1]); //double
+				var turnaroundCoord1 = transect[0].atDistanceAndAzimuth(-turnAroundDistance, azimuth);
 				//turnaroundCoord[2] = qQNaN(); //turnaroundCoord.setAltitude(qQNaN());
 				var coordInfo3 = new _CoordInfo();
 				coordInfo3.coord = turnaroundCoord1
 				coordInfo3.type = CoordType.CoordTypeTurnaround;  //TransectStyleComplexItem::CoordInfo_t
 				coordInfoTransect.unshift(coordInfo3);   //coordInfoTransect.prepend(coordInfo);
 
-				azimuth = azimuthTo(transect[transect.length - 1], transect[transect.length - 2]);
-				var turnaroundCoord2 = atDistanceAndAzimuth(transect[transect.length - 1], -turnAroundDistance, azimuth);
+				azimuth = transect[transect.length - 1].azimuthTo(transect[transect.length - 2]);
+				var turnaroundCoord2 = transect[transect.length - 1].atDistanceAndAzimuth(-turnAroundDistance, azimuth);
 				//turnaroundCoord[2] = qQNaN();
 				var coordInfo4 = new _CoordInfo();
 				coordInfo4.coord = turnaroundCoord2;
@@ -275,7 +294,7 @@
 		this.statistic.flyDist = 0;
 		for (var i = 0; i < this._visualTransectPoints.length - 1; i++) {
 			//計算this._visualTransectPoints 所成綫的長度
-			this.statistic.flyDist += distanceTo(this._visualTransectPoints[i].coord, this._visualTransectPoints[i + 1].coord);
+			this.statistic.flyDist += this._visualTransectPoints[i].coord.distanceTo(this._visualTransectPoints[i + 1].coord);
 		}
 
 		// 计算拍照次数
@@ -293,7 +312,7 @@
 					firstCameraCoord = transect[0].coord;
 					lastCameraCoord = transect[transect.length - 1].coord;
 				}
-				this.statistic.photoCount += Math.ceil(distanceTo(firstCameraCoord, lastCameraCoord) / this.camera.triggerDist);
+				this.statistic.photoCount += Math.ceil(firstCameraCoord.distanceTo(lastCameraCoord) / this.camera.triggerDist);
 			}
 		}
 
@@ -317,7 +336,7 @@
 	SurveyComplexItem.prototype.buildMissionItemToJson = function (index = 0) {
 		console.log("Build Mission Item To Json.")
 
-		if (this._transects == null || this._transects.length == 0)  return [];
+		if (this._transects == null || this._transects.length == 0) return [];
 		var seqNum = index;//_sequenceNumber;TODO
 		var imagesEverywhere = this.camera.triggerDist;
 		var addTriggerAtBeginning = !this.transects.hoverAndCapture && imagesEverywhere;
@@ -341,58 +360,42 @@
 						null,
 						40.0178603154819,
 						116.27626663248563,
-						50
+						missionItemParentmissionItemParent
 					],
 					"type": "SimpleItem" */
-				var item_case1 = new _ItemCase();
-				item_case1.doJumpId = seqNum++;
-				item_case1.command = 16;//MAV_CMD_NAV_WAYPOINT
-				item_case1.frame = mavFrame;
-				item_case1.params = [this.transects.hoverAndCapture ? 1 : 0,
-					0.0, 0.0, 0.0,
-					this._transects[i][j].coord.lng, this._transects[i][j].coord.lat, this._transects[i][j].coord.z];
-				item_case1.autoContinue = true;
-				item_case1.isCurrentItem = false;
-				item_case1.type = "SimpleItem"; // confirm
+				var item_case1 = new _ItemCase(seqNum++,
+					16,
+					mavFrame,
+					this.transects.hoverAndCapture ? 1 : 0,
+					0.0,
+					0.0,
+					0.0,
+					this._transects[i][j].coord.lng,
+					this._transects[i][j].coord.lat,
+					this._transects[i][j].coord.z,
+					true, false, "SimpleItem");
 				itemlist.push(item_case1);
 
 				if (this.transects.hoverAndCapture) {
-					var item_case2 = new _ItemCase();
-					item_case2.doJumpId = seqNum++;
-					item_case2.command = 2000;//MAV_CMD_IMAGE_START_CAPTURE
-					item_case2.frame = 2; //MAV_FRAME_MISSION
-					item_case2.params = [0.0, 0.0, 1, 0.0, 0.0, 0.0, 0.0];
-					item_case2.autoContinue = true;
-					item_case2.isCurrentItem = false;
-					item_case2.type = "SimpleItem"; // confirm
-					itemlist.push(item_case2);
-					/*item = new MissionItem(seqNum++,
-						MAV_CMD_IMAGE_START_CAPTURE,
-						MAV_FRAME_MISSION,
+					var item_case2 = new _ItemCase(seqNum++,
+						2000,
+						2,
 						0,                           // Reserved (Set to 0)
 						0,                           // Interval (none)
 						1,                           // Take 1 photo
 						0, 0, 0, 0,          // param 4-7 reserved
 						true,                        // autoContinue
 						false,                       // isCurrentItem
-						missionItemParent);
-					items.append(item);*/
+						"SimpleItem");
+					itemlist.push(item_case2);
+
 				}
 
 				if (firstOverallPoint && addTriggerAtBeginning) {
 					// Start triggering
 					addTriggerAtBeginning = false;
 
-					var item_case3 = new _ItemCase();
-					item_case3.doJumpId = seqNum++;
-					item_case3.command = 206;//MAV_CMD_IMAGE_START_CAPTURE
-					item_case3.frame = 2; //MAV_FRAME_MISSION
-					item_case3.params = [0.0, 0.0, 1, 0.0, 0.0, 0.0, 0.0];
-					item_case3.autoContinue = true;
-					item_case3.isCurrentItem = false;
-					item_case3.type = "SimpleItem"; // confirm
-					itemlist.push(item_case3);
-					/*item = new MissionItem(seqNum++,
+					var item_case3 = new _ItemCase(seqNum++,
 						MAV_CMD_DO_SET_CAM_TRIGG_DIST,
 						MAV_FRAME_MISSION,
 						triggerDistance(),   // trigger distance
@@ -401,8 +404,8 @@
 						0, 0, 0, 0,          // param 4-7 unused
 						true,                // autoContinue
 						false,               // isCurrentItem
-						missionItemParent);
-					items.append(item);*/
+						"SimpleItem");
+					itemlist.push(item_case3);
 				}
 				firstOverallPoint = false;
 
@@ -410,16 +413,7 @@
 					if (entryPoint) {
 						// Start of transect, start triggering
 
-						var item_case4 = new _ItemCase();
-						item_case4.doJumpId = seqNum++;
-						item_case4.command = 206;//MAV_CMD_IMAGE_START_CAPTURE
-						item_case4.frame = 2; //MAV_FRAME_MISSION
-						item_case4.params = [0.0, 0.0, 1, 0.0, 0.0, 0.0, 0.0];
-						item_case4.autoContinue = true;
-						item_case4.isCurrentItem = false;
-						item_case4.type = "SimpleItem"; // confirm
-						itemlist.push(item_case4);
-						/*item = new MissionItem(seqNum++,
+						var item_case4 = new _ItemCase(seqNum++,
 							MAV_CMD_DO_SET_CAM_TRIGG_DIST,
 							MAV_FRAME_MISSION,
 							triggerDistance(),   // trigger distance
@@ -428,30 +422,22 @@
 							0, 0, 0, 0,          // param 4-7 unused
 							true,                // autoContinue
 							false,               // isCurrentItem
-							missionItemParent);
-						items.append(item);*/
+							"SimpleItem");
+
+						itemlist.push(item_case4);
 					} else {
 						// End of transect, stop triggering
-						var item_case4 = new _ItemCase();
-						item_case4.doJumpId = seqNum++;
-						item_case4.command = 206;//MAV_CMD_IMAGE_START_CAPTURE
-						item_case4.frame = 2; //MAV_FRAME_MISSION
-						item_case4.params = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-						item_case4.autoContinue = true;
-						item_case4.isCurrentItem = false;
-						item_case4.type = "SimpleItem"; // confirm
-						itemlist.push(item_case4);
-						/*item = new MissionItem(seqNum++,
-							MAV_CMD_DO_SET_CAM_TRIGG_DIST,
-							MAV_FRAME_MISSION,
+						var item_case4 = new _ItemCase(seqNum++,
+							206,
+							2,
 							0,           // stop triggering
 							0,           // shutter integration (ignore)
 							0,           // trigger immediately when starting
 							0, 0, 0, 0,  // param 4-7 unused
 							true,        // autoContinue
 							false,       // isCurrentItem
-							missionItemParent);
-						items.append(item);*/
+							"SimpleItem");
+						itemlist.push(item_case4);
 					}
 					entryPoint = !entryPoint;
 				}
@@ -463,7 +449,7 @@
 
 	SurveyComplexItem.prototype.setViewPort = function (coord, width, height, isMec = false) {
 		console.log("Setting view port.")
-		this._surveyAreaPolygon = calcPolygonCornor(coord, width, height, isMec)
+		this._surveyAreaPolygon = calcPolygonCornor(coord, width, height, 3000, isMec)
 	}
 
 	window.SurveyComplexItem = SurveyComplexItem;
