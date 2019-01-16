@@ -32,7 +32,7 @@
 
 				geoToNedResult = new _Point(0, 0, 0);
 			} else {
-				geoToNedResult = vertex.convertGeoToNed(tangentOrigin);
+				geoToNedResult = convertGeoToNed(vertex, tangentOrigin);
 			}
 			polygonPoints.push(geoToNedResult);  //polygonPoints点数组中添加转换后的点
 			calcAreaPoly.points.push(geoToNedResult);
@@ -43,7 +43,7 @@
 			console.log("_rebuildTransectsPhase1 vertex:x:y" + vertex + polygonPoints[polygonPoints.length - 1]);
 		}
 
-		this.statistic.surveyArea = calcAreaPoly.calcArea();
+		this.statistic.surveyArea = calcArea(calcAreaPoly);
 
 		// Generate transects
 		this.transects.angle = _clampGridAngle90(this.transects.angle);  //这里调用格式化角度的函数
@@ -98,7 +98,7 @@
 		// 生成的横断面与边界矩形的最大宽度/高度一样长，加上一些模糊因子。
 		// 这样，无论旋转到什么角度，它们都保证与多边形边缘相交。
 		// 它们最初是由横断面由西向东流动产生的，然后在横断面内由北向南指向点。
-		var maxWidth = Math.max(boundingRect[0], boundingRect[1]) + 2000.0; // 最大宽度，qMax函数是执行 return (a < b) ? b : a; 查找最大值
+		var maxWidth = qMax(boundingRect[0], boundingRect[1]) + 2000.0; // 最大宽度，qMax函数是执行 return (a < b) ? b : a; 查找最大值
 		var halfWidth = maxWidth / 2.0;
 		var transectX = boundingCenter.lng - halfWidth;
 		var transectXMax = transectX + maxWidth;
@@ -126,17 +126,15 @@
 		// FIXIT
 		if (intersectLines.length < 2) {
 			var firstLine = lineList[0]; //QLineF  取第一条线
-			var lineCenter = new _Point((firstLine.p1.lng + firstLine.p2.lng) / 2, (firstLine.p1.lat + firstLine.p2.lat) / 2, 0);
-			var centerOffset = new _Point(boundingCenter.lng - lineCenter.lng, boundingCenter.lat - lineCenter.lat, 0);
-			firstLine.p1.lng += centerOffset.lng;
-			firstLine.p2.lng += centerOffset.lng;
-			firstLine.p1.lat += centerOffset.lat;
-			firstLine.p2.lat += centerOffset.lat;
-			
+			var lineCenter = [(firstLine[0][0] + firstLine[1][0]) / 2, (firstLine[0][1] + firstLine[1][1]) / 2]; //QPointF 获取两点的中心点
+			var centerOffset = [boundingCenter[0][0] - lineCenter[0][1], boundingCenter[0][0] - lineCenter[0][1]]; //TODO QPointF 这里不知道算的对不对
+			// firstLine.translate(centerOffset);
+			firstLine[0] = [[firstLine[0][0][0] + centerOffset[0][0], firstLine[0][0][1] + centerOffset[0][1]], [firstLine[0][1][0] + centerOffset[0][0], firstLine[0][1][1] + centerOffset[0][1]]];
+			firstLine[1] = [[firstLine[1][0][0] + centerOffset[0][0], firstLine[1][0][1] + centerOffset[0][1]], [firstLine[1][1][0] + centerOffset[0][0], firstLine[1][1][1] + centerOffset[0][1]]];
 			lineList = new Array(); //清理
 			lineList.push(firstLine);
 			intersectLines = lineList;
-			intersectLines = _intersectLinesWithPolygon(lineList, polygon);
+			_intersectLinesWithPolygon(lineList, polygon, intersectLines);
 		}
 
 		// Make sure all lines are going the same direction. Polygon intersection leads to lines which
@@ -150,8 +148,8 @@
 		for (var ind = 0; ind < resultLines.length; ind++) {  //遍历线数组resultLines
 			var tmpLine = resultLines[ind];  //QGeoCoordinate
 			var transect = [];//QList<QGeoCoordinate>
-			transect.push(tmpLine.p1.convertNedToGeo(tangentOrigin)); //将Ned转换成Geo
-			transect.push(tmpLine.p2.convertNedToGeo(tangentOrigin)); //将Ned转换成Geo
+			transect.push(convertNedToGeo(tmpLine.p1.lat, tmpLine.p1.lng, 0, tangentOrigin)); //将Ned转换成Geo
+			transect.push(convertNedToGeo(tmpLine.p2.lat, tmpLine.p2.lng, 0, tangentOrigin)); //将Ned转换成Geo
 			transects.push(transect);
 		}
 
@@ -219,14 +217,14 @@
 			if (this.camera.triggerDist && this.transects.hoverAndCapture) {//(triggerCamera() && hoverAndCaptureEnabled()) 
 				//bool    triggerCamera           (void) const { return triggerDistance() != 0; }
 				// bool    hoverAndCaptureEnabled  (void) const { return hoverAndCapture()->rawValue().toBool(); }
-				var transectLength = transect[0].distanceTo(transect[1]);  //这里是在算距离
-				var transectAzimuth = transect[0].azimuthTo(transect[1]);  //这里是在算角度
+				var transectLength = distanceTo(transect[0], transect[1]);  //这里是在算距离
+				var transectAzimuth = azimuthTo(transect[0], transect[1]);  //这里是在算角度
 
 				if (this.camera.triggerDist < transectLength) {//double  triggerDistance         (void) const { return _cameraCalc.adjustedFootprintFrontal()->rawValue().toDouble(); }
 					var cInnerHoverPoints = Math.floor(transectLength / this.camera.triggerDist);
 					console.log("cInnerHoverPoints" + cInnerHoverPoints);
 					for (var i = 0; i < cInnerHoverPoints; i++) {
-						var hoverCoord = transect[0].atDistanceAndAzimuth(this.camera.triggerDist * (i + 1), transectAzimuth); //QGeoCoordinate
+						var hoverCoord = atDistanceAndAzimuth(transect[0], this.camera.triggerDist * (i + 1), transectAzimuth); //QGeoCoordinate
 						var coordInfo = [hoverCoord, CoordType.CoordTypeInteriorHoverTrigger]; //TransectStyleComplexItem::CoordInfo_t 
 						coordInfoTransect.push(coordInfo);  //coordInfoTransect.insert(1 + i, coordInfo);
 					}
@@ -238,16 +236,16 @@
 				//QGeoCoordinate
 				var turnAroundDistance = this.transects.turnAroundDist; //double
 
-				var azimuth = transect[0].azimuthTo(transect[1]); //double
-				var turnaroundCoord1 = transect[0].atDistanceAndAzimuth(-turnAroundDistance, azimuth);
+				var azimuth = azimuthTo(transect[0], transect[1]); //double
+				var turnaroundCoord1 = atDistanceAndAzimuth(transect[0], -turnAroundDistance, azimuth);
 				//turnaroundCoord[2] = qQNaN(); //turnaroundCoord.setAltitude(qQNaN());
 				var coordInfo3 = new _CoordInfo();
 				coordInfo3.coord = turnaroundCoord1
 				coordInfo3.type = CoordType.CoordTypeTurnaround;  //TransectStyleComplexItem::CoordInfo_t
 				coordInfoTransect.unshift(coordInfo3);   //coordInfoTransect.prepend(coordInfo);
 
-				azimuth = transect[transect.length - 1].azimuthTo(transect[transect.length - 2]);
-				var turnaroundCoord2 = transect[transect.length - 1].atDistanceAndAzimuth(-turnAroundDistance, azimuth);
+				azimuth = azimuthTo(transect[transect.length - 1], transect[transect.length - 2]);
+				var turnaroundCoord2 = atDistanceAndAzimuth(transect[transect.length - 1], -turnAroundDistance, azimuth);
 				//turnaroundCoord[2] = qQNaN();
 				var coordInfo4 = new _CoordInfo();
 				coordInfo4.coord = turnaroundCoord2;
@@ -275,7 +273,7 @@
 		this.statistic.flyDist = 0;
 		for (var i = 0; i < this._visualTransectPoints.length - 1; i++) {
 			//計算this._visualTransectPoints 所成綫的長度
-			this.statistic.flyDist += this._visualTransectPoints[i].coord.distanceTo(this._visualTransectPoints[i + 1].coord);
+			this.statistic.flyDist += distanceTo(this._visualTransectPoints[i].coord, this._visualTransectPoints[i + 1].coord);
 		}
 
 		// 计算拍照次数
@@ -293,7 +291,7 @@
 					firstCameraCoord = transect[0].coord;
 					lastCameraCoord = transect[transect.length - 1].coord;
 				}
-				this.statistic.photoCount += Math.ceil(firstCameraCoord.distanceTo(lastCameraCoord) / this.camera.triggerDist);
+				this.statistic.photoCount += Math.ceil(distanceTo(firstCameraCoord, lastCameraCoord) / this.camera.triggerDist);
 			}
 		}
 
@@ -463,7 +461,7 @@
 
 	SurveyComplexItem.prototype.setViewPort = function (coord, width, height, isMec = false) {
 		console.log("Setting view port.")
-		this._surveyAreaPolygon = calcPolygonCornor(coord, width, height, 3000, isMec)
+		this._surveyAreaPolygon = calcPolygonCornor(coord, width, height, isMec)
 	}
 
 	window.SurveyComplexItem = SurveyComplexItem;

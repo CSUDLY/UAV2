@@ -4,7 +4,7 @@
 
 (function () {
 
-	var TransectStyleComplexItem = function (options = new Options()) {
+	this.TransectStyleComplexItem = function (options = new Options()) {
 		// 巡航区域的面.
 		this.surveyAreaPolygon = null
 		// Camera
@@ -13,7 +13,6 @@
 		this.camera.altitude = options.camera.altitude || 50
 		this.camera.triggerDist = options.camera.triggerDist || 25
 		this.camera.spacing = options.camera.spacing || 25
-		this.camera.DistanceToSurface = 0;
 
 		// Transects
 		this.transects = new Object();
@@ -37,8 +36,6 @@
 		this.statistic.flyDist = 0; // 飞行距离
 
 		// Members
-		this._flySpeed = 5;// m/s
-		this._wayPtAlt = 50;
 		this._transectsPathHeightInfo = null;
 		this._visualTransectPoints = null;
 		this._surveyAreaPolygon = null;//new _Polygon();
@@ -76,14 +73,16 @@
 		console.log("Build Mission Item To Json.")
 	}
 
-	TransectStyleComplexItem.prototype.setCameraCalc = function (camera_param, isManual = false) {
+	TransectStyleComplexItem.prototype.setCameraCalc = function(camera_param, isManual = false)
+	{
 		if (this.cameraCalc == null) {
 			this.cameraCalc = new _CameraCalc(camera_param);
 		}
 	}
 	TransectStyleComplexItem.prototype.recalcTriggerDistance = function (isManual = false) {
-
-		if (this.cameraCalc == null) {
+		
+		if (this.cameraCalc == null)
+		{
 			return;
 		}
 		//this.cameraCalc instanceof _CameraCalc;
